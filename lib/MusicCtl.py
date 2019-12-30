@@ -10,15 +10,8 @@ import threading
 
 class MusicCtl:
     def __init__(self):
-        self.__playerQueue = []
-        self.__playerPosition = 0
         self.playerThread = PlayerThread()
         self.playerThread.start()
-        self.playerThread.play('../BIOTONIC - onoken.mp3')
-        print('init musicCtl')
-
-    def queue_join(self, meta):
-        pass
 
 
 class PlayerThread(threading.Thread):
@@ -45,14 +38,14 @@ class PlayerThread(threading.Thread):
                     if progress:
                         if not math.isnan(progress):
                             self.__play_progress = progress
-                print(self.__process.poll())
+                if self.__process.poll() is not None:
+                    self.stop()
 
     def play(self, path, start=0.0):
         self.stop()
         path = os.path.abspath(path)
         self.meta = ffmpeg.probe(path)['format']
-        # print(json.dumps(self.meta, indent=4))
-        if not self.__playing and self.__process is None and os.path.isfile(path):
+        if not self.__playing and os.path.isfile(path):
             self.__playing = True
             self.__playing_path = path
             self.__process = subprocess.Popen('ffplay "%s" -nodisp -autoexit -ss %s' % (path, start),
@@ -66,7 +59,6 @@ class PlayerThread(threading.Thread):
         self.__playing = False
         if self.__process:
             self.__process.kill()
-            self.__process = None
 
     def pause(self):
         self.stop()
@@ -77,7 +69,3 @@ class PlayerThread(threading.Thread):
 
     def progress_adj(self, progress):
         self.play(self.__playing_path, progress)
-
-
-if __name__ == '__main__':
-    mctl = MusicCtl()
