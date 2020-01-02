@@ -2,7 +2,6 @@
 
 import os
 import math
-import json
 import ffmpeg
 import subprocess
 import threading

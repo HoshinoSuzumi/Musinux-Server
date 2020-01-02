@@ -1,8 +1,10 @@
+import os
 from flask import Flask, request, Response, json
 from lib import MusicCtl
 
 app = Flask(__name__)
 player = MusicCtl.MusicCtl().playerThread
+upload_path_prefix = 'uploads'
 
 play_queue = []
 
@@ -21,14 +23,25 @@ def hello_world():
     return make_response(0, 'Music Console API is activated.')
 
 
+@app.route('/upload', methods=['POST'])
+def upload():
+    f = request.files['file']
+    upload_path = os.path.join(os.path.dirname(__file__), upload_path_prefix, f.filename)
+    f.save(upload_path)
+    return make_response(0, 'Upload success', {
+        "save_path": upload_path
+    })
+
+
 @app.route('/control', methods=['POST'])
 def control():
     req = request.form
     if req['action'] == 'play':
-        if play_queue:
-            player.play('./BIOTONIC - onoken.mp3')
+        if int(req['isPlaylist']) == 1:
+            print('- Fuck you! Playlist is not developed yet!! るさい!!! Even u wanna play [%s]' % req['mark'])
         else:
-            return make_response(-1, 'Empty playlist', play_queue)
+            player.play(os.path.join(os.path.dirname(__file__), upload_path_prefix, r'%s' % req['mark']))
+            print('Single song [%s] will play for u.' % req['mark'])
     elif req['action'] == 'stop':
         player.stop()
     elif req['action'] == 'pause':
