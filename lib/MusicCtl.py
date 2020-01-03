@@ -17,11 +17,12 @@ class PlayerThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.meta = None
-        self.__playing = False
+        self.isPlaying = False
+        self.play_progress = 0.0,
+        self.volume = 100
         self.__process = None
-        self.__play_progress = 0.0
         self.__playing_path = ''
-        os.popen('amixer set Master 100%')
+        self.vol(100)
 
     def run(self) -> None:
         while True:
@@ -36,26 +37,34 @@ class PlayerThread(threading.Thread):
                         pass
                     if progress:
                         if not math.isnan(progress):
-                            self.__play_progress = progress
+                            self.play_progress = progress
                 if self.__process.poll() is not None:
                     self.stop()
+                else:
+                    self.isPlaying = True
+
+    def vol(self, vol: int):
+        self.volume = vol
+        os.popen('amixer set Master %i%%' % vol)
 
     def play(self, path, start=0.0):
         self.stop()
         path = os.path.abspath(path)
-        self.meta = ffmpeg.probe(path)['format']
-        if not self.__playing and os.path.isfile(path):
-            self.__playing = True
-            self.__playing_path = path
-            self.__process = subprocess.Popen('ffplay "%s" -nodisp -autoexit -ss %s' % (path, start),
-                                              shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                              stderr=subprocess.STDOUT, encoding='utf-8')
+        if os.path.isfile(path):
+            self.meta = ffmpeg.probe(path)['format']
+            print(self.meta)
+            if not self.isPlaying:
+                self.isPlaying = True
+                self.__playing_path = path
+                self.__process = subprocess.Popen('ffplay "%s" -nodisp -autoexit -ss %s' % (path, start),
+                                                  shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                                  stderr=subprocess.STDOUT, encoding='utf-8')
             return 0
         else:
-            return -1
+            return 10001
 
     def stop(self):
-        self.__playing = False
+        self.isPlaying = False
         if self.__process:
             self.__process.kill()
 
@@ -64,7 +73,4 @@ class PlayerThread(threading.Thread):
 
     def resume(self):
         if self.__playing_path is not '' and self.__playing_path:
-            self.play(self.__playing_path, self.__play_progress)
-
-    def progress_adj(self, progress):
-        self.play(self.__playing_path, progress)
+            self.play(self.__playing_path, self.play_progress)
