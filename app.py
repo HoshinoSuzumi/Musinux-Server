@@ -1,9 +1,13 @@
 import os
 import time
+import math
+import threading
 from flask import Flask, request, Response, json
+from flask_cors import CORS
 from lib import MusicCtl
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"*": {"origins": "*"}})
 player = MusicCtl.MusicCtl().playerThread
 upload_path_prefix = 'uploads'
 
@@ -33,8 +37,16 @@ def getMusicList():
     return os.listdir(os.path.join(os.path.dirname(__file__), upload_path_prefix))
 
 
+class QueueManagerThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+    def run(self) -> None:
+        pass
+
+
 @app.route('/')
-def hello_world():
+def root():
     return make_response(0, 'Music Console API is activated.')
 
 
@@ -62,28 +74,34 @@ def upload():
 @app.route('/control', methods=['POST'])
 def controller():
     req = request.form
-    if req['action'] == 'play':
-        if int(req['isPlaylist']) == 1:
+    if req.get('action') == 'play':
+        if req.get('isPlaylist', type=int) == 1:
             print('- Fuck you! Playlist is not developed yet!! るさい!!! Even u wanna play [%s]' % req['mark'])
         else:
-            status = player.play(os.path.join(os.path.dirname(__file__), upload_path_prefix, r'%s' % req['mark']))
-            print('Single song [%s] will play for u with status code [%s]' % (req['mark'], status))
+            status = -1
+            startIn = req.get('start', type=float, default=None)
+            if startIn:
+                status = player.play(os.path.join(os.path.dirname(__file__), upload_path_prefix, r'%s' % req.get('mark')),
+                                     start=startIn)
+            else:
+                status = player.play(os.path.join(os.path.dirname(__file__), upload_path_prefix, r'%s' % req.get('mark')))
+            print('Single song [%s] will play for u with status code [%s]' % (req.get('mark'), status))
             if status != 0:
                 return make_response(status)
             else:
                 return make_response(0, data={'meta': player.meta})
-    elif req['action'] == 'stop':
+    elif req.get('action') == 'stop':
         player.stop()
         return make_response(0, 'ok')
-    elif req['action'] == 'pause':
+    elif req.get('action') == 'pause':
         player.pause()
         return make_response(0, 'ok')
-    elif req['action'] == 'resume':
+    elif req.get('action') == 'resume':
         player.resume()
         return make_response(0, 'ok')
-    elif req['action'] == 'vol':
-        player.vol(int(req['mark']))
-        return make_response(0, 'ok', data={'vol': int(req['mark'])})
+    elif req.get('action') == 'vol':
+        player.vol(req.get('mark', type=int))
+        return make_response(0, 'ok', data={'vol': req.get('mark', type=int)})
     else:
         return make_response(20001)
 
@@ -99,8 +117,8 @@ def fetcher():
     elif req['type'] == 'status':
         status = {
             'isPlaying': player.isPlaying,
-            'meta': player.meta if player.isPlaying else None,
-            'progress': player.play_progress if player.isPlaying else None,
+            'meta': player.meta if player.isPlaying or player.paused else None,
+            'progress': player.play_progress if player.isPlaying or player.paused else None,
             'vol': player.volume
         }
         return make_response(0, data=status)

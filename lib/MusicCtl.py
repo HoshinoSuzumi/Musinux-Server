@@ -20,6 +20,7 @@ class PlayerThread(threading.Thread):
         self.isPlaying = False
         self.play_progress = 0.0,
         self.volume = 100
+        self.paused = False
         self.__process = None
         self.__playing_path = ''
         self.vol(100)
@@ -48,6 +49,7 @@ class PlayerThread(threading.Thread):
         os.popen('amixer set Master %i%%' % vol)
 
     def play(self, path, start=0.0):
+        self.paused = False
         self.stop()
         path = os.path.abspath(path)
         if os.path.isfile(path):
@@ -69,8 +71,10 @@ class PlayerThread(threading.Thread):
             self.__process.kill()
 
     def pause(self):
+        self.paused = True
         self.stop()
 
     def resume(self):
-        if self.__playing_path is not '' and self.__playing_path:
+        if self.__playing_path is not '' and self.__playing_path and self.paused:
             self.play(self.__playing_path, self.play_progress)
+            self.paused = False
