@@ -54,6 +54,7 @@ def root():
 def upload():
     files = request.files.getlist('file')
     music_list = getMusicList()
+    player.updatePlaylist()
     upload_result = {
         'total': len(files),
         'failed': 0,
